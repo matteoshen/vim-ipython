@@ -134,6 +134,8 @@ def km_from_string(s=''):
     kc = kernel.client
     send = kernel.send
 
+    echo('Kernel Connected')
+
     return km
 
 
@@ -155,7 +157,8 @@ def disconnect():
 def get_doc(word, level=0):
     if kc is None:
         return ["Not connected to IPython, cannot query: %s" % word]
-    msg_id = kc.shell_channel.object_info(word, level)
+    word += '?' * (level + 1)
+    msg_id = send(word)
     doc = get_doc_msg(msg_id)
     # get around unicode problems when interfacing with vim
     return [d.encode(vim_encoding) for d in doc]
@@ -170,7 +173,7 @@ def strip_color_escapes(s):
 
 
 def get_doc_msg(msg_id):
-    n = 13  # longest field name (empirically)
+    # n = 13  # longest field name (empirically)
     b = []
     try:
         content = get_child_msg(msg_id)['content']
@@ -178,38 +181,38 @@ def get_doc_msg(msg_id):
         # timeout occurred
         return ["no reply from IPython kernel"]
 
-    if not content['found']:
-        return b
+    # if not content['found']:
+    #     return b
 
     # IPython 3.0+ the documentation message is encoding by the kernel
-    if 'data' in content:
+    if 'payload' in content:
         try:
-            text = content['data']['text/plain']
+            text = content['payload'][0]['data']['text/plain']
             for line in text.split('\n'):
                 b.append(strip_color_escapes(line).rstrip())
             return b
-        except KeyError:  # no text/plain key
+        except KeyError:  # no payload key
             return b
 
-    for field in [
-            'type_name', 'base_class', 'string_form', 'namespace', 'file',
-            'length', 'definition', 'source', 'docstring'
-    ]:
-        c = content.get(field, None)
-        if c:
-            if field in ['definition']:
-                c = strip_color_escapes(c).rstrip()
-            s = field.replace('_', ' ').title() + ':'
-            s = s.ljust(n)
-            if c.find('\n') == -1:
-                b.append(s + c)
-            else:
-                b.append(s)
-                b.extend(c.splitlines())
+    # for field in [
+    #         'type_name', 'base_class', 'string_form', 'namespace', 'file',
+    #         'length', 'definition', 'source', 'docstring'
+    # ]:
+    #     c = content.get(field, None)
+    #     if c:
+    #         if field in ['definition']:
+    #             c = strip_color_escapes(c).rstrip()
+    #         s = field.replace('_', ' ').title() + ':'
+    #         s = s.ljust(n)
+    #         if c.find('\n') == -1:
+    #             b.append(s + c)
+    #         else:
+    #             b.append(s)
+    #             b.extend(c.splitlines())
     return b
 
 
-def get_doc_buffer(level=0):
+def get_doc_buffer(level=0, visual_mode=False):
     # empty string in case vim.eval return None
     vim.command("let isk_save = &isk")  # save iskeyword list
     vim.command("let &isk = '@,48-57,_,192-255,.'")
@@ -228,17 +231,17 @@ def get_doc_buffer(level=0):
     # viewing the documentation, comment out the next line
     vim.command('nnoremap <buffer> <Esc> :q<CR>')
     # and uncomment this line (which will work if you have a timoutlen set)
-    #vim.command('nnoremap <buffer> <Esc><Esc> :q<CR>')
+    # vim.command('nnoremap <buffer> <Esc><Esc> :q<CR>')
     b = vim.current.buffer
     b[:] = None
     b[:] = doc
     vim.command('setlocal nomodified bufhidden=wipe')
-    #vim.command('setlocal previewwindow nomodifiable nomodified ro')
-    #vim.command('set previewheight=%d'%len(b))# go to previous window
-    vim.command('resize %d' % len(b))
-    #vim.command('pcl')
-    #vim.command('pedit doc')
-    #vim.command('normal! ') # go to previous window
+    # vim.command('setlocal previewwindow nomodifiable nomodified ro')
+    # vim.command('set previewheight=%d'%len(b))# go to previous window
+    vim.command('resize %d' % max(len(b), 20))
+    # vim.command('pcl')
+    # vim.command('pedit doc')
+    # vim.command('normal! ') # go to previous window
     if level == 0:
         # use the ReST formatting that ships with stock vim
         vim.command('setlocal syntax=rst')
@@ -259,7 +262,7 @@ def ipy_complete(base, current_line, pos):
         # we need to be careful with unicode, because we can have unicode
         # completions for filenames (for the %run magic, for example). So the next
         # line will fail on those:
-        #completions= [str(u) for u in matches]
+        # completions= [str(u) for u in matches]
         # because str() won't work for non-ascii characters
         # and we also have problems with unicode in vim, hence the following:
         return matches
@@ -419,12 +422,13 @@ def get_child_msg(msg_id):
     # XXX: message handling should be split into its own process in the future
     while True:
         # get_msg will raise with Empty exception if no messages arrive in 1 second
-        m = kc.shell_channel.get_msg(timeout=1)
+        # m = kc.shell_channel.get_msg(timeout=1)
+        m = kc.get_shell_msg(timeout=1)
         if m['parent_header']['msg_id'] == msg_id:
             break
-        else:
-            #got a message, but not the one we were looking for
-            echo('skipping a message on shell_channel', 'WarningMsg')
+        # else:
+            # got a message, but not the one we were looking for
+            # echo('skipping a message on shell_channel', 'WarningMsg')
     return m
 
 
@@ -499,6 +503,15 @@ def run_this_line(dedent=False):
 
 
 @with_subchannel
+def run_get_doc(level=0):
+    word = vim.eval("expand('<cword>')")
+    # get_doc_buffer(level)
+    word += '?' * (level + 1)
+    msg_id = send(word)
+    print_prompt(word, msg_id)
+
+
+@with_subchannel
 def run_selected():
     buf = vim.current.buffer
     (lnum1, col1) = buf.mark('<')
@@ -541,17 +554,17 @@ def run_these_lines(dedent=False):
     else:
         lines = "\n".join(vim.current.buffer[r.start:r.end + 1])
     msg_id = send(lines)
-    #alternative way of doing this in more recent versions of ipython
-    #but %paste only works on the local machine
-    #vim.command("\"*yy")
-    #send("'%paste')")
-    #reselect the previously highlighted block
+    # alternative way of doing this in more recent versions of ipython
+    # but %paste only works on the local machine
+    # vim.command("\"*yy")
+    # send("'%paste')")
+    # reselect the previously highlighted block
     vim.command("normal! gv")
     if not reselect:
         vim.command("normal! ")
 
-    #vim lines start with 1
-    #print("lines %d-%d sent to ipython"% (r.start+1,r.end+1))
+    # vim lines start with 1
+    # print("lines %d-%d sent to ipython"% (r.start+1,r.end+1))
     prompt = "lines %d-%d " % (r.start + 1, r.end + 1)
     print_prompt(prompt, msg_id)
 
@@ -631,11 +644,11 @@ def dedent_run_these_lines():
     run_these_lines(True)
 
 
-#def set_this_line():
-#    # not sure if there's a way to do this, since we have multiple clients
-#    send("get_ipython().shell.set_next_input(\'%s\')" % vim.current.line.replace("\'","\\\'"))
-#    #print("line \'%s\' set at ipython prompt"% vim.current.line)
-#    echo("line \'%s\' set at ipython prompt"% vim.current.line,'Statement')
+# def set_this_line():
+#     # not sure if there's a way to do this, since we have multiple clients
+#     send("get_ipython().shell.set_next_input(\'%s\')" % vim.current.line.replace("\'","\\\'"))
+#     # print("line \'%s\' set at ipython prompt"% vim.current.line)
+#     echo("line \'%s\' set at ipython prompt"% vim.current.line,'Statement')
 
 
 def toggle_reselect():

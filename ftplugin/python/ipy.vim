@@ -93,7 +93,7 @@ au FocusGained *.*,vim-ipython :python3 if update_subchannel_msgs(): echo("vim-i
 au BufEnter vim-ipython :python3 if update_subchannel_msgs(): echo("vim-ipython shell updated (on buffer enter)",'Operator')
 
 " Setup plugin mappings for the most common ways to interact with ipython.
-noremap  <Plug>(IPython-RunFile)            :python3 run_this_file()<CR>
+noremap  <Plug>(IPython-Connect)                    :python3 km_from_string()<CR>
 noremap  <Plug>(IPython-RunLine)            :python3 run_this_line()<CR>
 noremap  <Plug>(IPython-RunLines)           :python3 run_these_lines()<CR>
 noremap  <Plug>(IPython-RunSelected)        :python3 run_selected()<CR>
@@ -113,10 +113,11 @@ noremap  <Plug>(IPython-RunLineAsTopLevel)  :python3 dedent_run_this_line()<CR>
 xnoremap <Plug>(IPython-RunLinesAsTopLevel) :python3 dedent_run_these_lines()<CR>
 
 if g:ipy_perform_mappings != 0
-    map  <buffer> <silent> <F5>           <Plug>(IPython-RunFile)
-    nmap  <buffer> <silent> <space><space>         <Plug>(IPython-RunLine)
-    vmap  <buffer> <silent> <space>j         <Plug>(IPython-RunSelected)
-    nmap  <buffer> <silent> <space>w         <Plug>(IPython-RunCurrentWord)
+    map   <buffer> <silent> <space><F5>                     <Plug>(IPython-Connect)
+    map   <buffer> <silent> <F5>                            <Plug>(IPython-RunFile)
+    nmap  <buffer> <silent> <space><space>                  <Plug>(IPython-RunLine)
+    vmap  <buffer> <silent> <space><space>                  <Plug>(IPython-RunSelected)
+    nmap  <buffer> <silent> <space>w                        <Plug>(IPython-RunCurrentWord)
     " map  <buffer> <silent> <F9>           <Plug>(IPython-RunLines)
     " map  <buffer> <silent> <LocalLeader>d <Plug>(IPython-OpenPyDoc)
     " map  <buffer> <silent> <LocalLeader>s <Plug>(IPython-UpdateShell)
