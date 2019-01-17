@@ -1,13 +1,11 @@
+import re
+from queue import Empty
+
 reselect = False  # reselect lines after sending from Visual mode
 show_execution_count = True  # wait to get numbers for In[43]: feedback?
 monitor_subchannel = True  # update vim-ipython 'shell' on every send?
 run_flags = "-i"  # flags to for IPython's run magic when using <F5>
 current_line = ''
-
-try:
-    from queue import Empty  # python3 convention
-except ImportError:
-    from Queue import Empty
 
 try:
     import vim
@@ -20,27 +18,8 @@ except ImportError:
     vim = NoOp()
     print("uh oh, not running inside vim")
 
-import re
-import sys
-
 # get around unicode problems when interfacing with vim
 vim_encoding = vim.eval('&encoding') or 'utf-8'
-
-try:
-    sys.stdout.flush
-except AttributeError:
-    # IPython complains if stderr and stdout don't have flush
-    # this is fixed in newer version of Vim
-    class WithFlush(object):
-        def __init__(self, noflush):
-            self.write = noflush.write
-            self.writelines = noflush.writelines
-
-        def flush(self):
-            pass
-
-    sys.stdout = WithFlush(sys.stdout)
-    sys.stderr = WithFlush(sys.stderr)
 
 
 def vim_variable(name, default=None):
@@ -70,7 +49,6 @@ status_prompt_colors = {
 
 status_blank_lines = int(vim_variable('g:ipy_status_blank_lines', '1'))
 
-ip = '127.0.0.1'
 # this allows us to load vim_ipython multiple times
 try:
     km
@@ -117,14 +95,8 @@ def new_ipy(s=''):
 
 
 def km_from_string(s=''):
-    """create kernel manager from IPKernelApp string
-    such as '--shell=47378 --iopub=39859 --stdin=36778 --hb=52668' for IPython 0.11
-    or just 'kernel-12345.json' for IPython 0.12
+    """create kernel manager from existing jupyter kernel
     """
-    try:
-        import IPython
-    except ImportError:
-        raise ImportError("Could not find IPython. " + _install_instructions)
     from simple_kernel import SimpleKernel
     kernel = SimpleKernel(use_exist=True)
 
@@ -155,6 +127,8 @@ def disconnect():
 
 
 def get_doc(word, level=0):
+    """get doc of word
+    """
     if kc is None:
         return ["Not connected to IPython, cannot query: %s" % word]
     word += '?' * (level + 1)
@@ -169,20 +143,19 @@ strip = re.compile('\x1B\[([0-9]{1,2}(;[0-9]{1,2})?)?[m|K]')
 
 
 def strip_color_escapes(s):
+    """replace special characters
+    """
     return strip.sub('', s)
 
 
 def get_doc_msg(msg_id):
-    # n = 13  # longest field name (empirically)
+    """get doc msg
+    """
     b = []
     try:
         content = get_child_msg(msg_id)['content']
     except Empty:
-        # timeout occurred
-        return ["no reply from IPython kernel"]
-
-    # if not content['found']:
-    #     return b
+        return ["no reply from IPython kernel"]  # timeout occurred
 
     # IPython 3.0+ the documentation message is encoding by the kernel
     if 'payload' in content:
@@ -193,30 +166,30 @@ def get_doc_msg(msg_id):
             return b
         except KeyError:  # no payload key
             return b
+        except Exception as e:
+            return b
 
-    # for field in [
-    #         'type_name', 'base_class', 'string_form', 'namespace', 'file',
-    #         'length', 'definition', 'source', 'docstring'
-    # ]:
-    #     c = content.get(field, None)
-    #     if c:
-    #         if field in ['definition']:
-    #             c = strip_color_escapes(c).rstrip()
-    #         s = field.replace('_', ' ').title() + ':'
-    #         s = s.ljust(n)
-    #         if c.find('\n') == -1:
-    #             b.append(s + c)
-    #         else:
-    #             b.append(s)
-    #             b.extend(c.splitlines())
     return b
 
 
-def get_doc_buffer(level=0, visual_mode=False):
+def get_doc_buffer(level=0, visual=False):
+    """get doc buffer
+    """
     # empty string in case vim.eval return None
     vim.command("let isk_save = &isk")  # save iskeyword list
     vim.command("let &isk = '@,48-57,_,192-255,.'")
-    word = vim.eval('expand("<cword>")') or ''
+    if visual:
+        buf = vim.current.buffer
+        (lnum1, col1) = buf.mark('<')
+        (lnum2, col2) = buf.mark('>')
+        lines = vim.eval('getline({}, {})'.format(lnum1, lnum2))
+        if lnum1 == lnum2:
+            word = lines[0][col1:col2 + 1]
+        else:
+            echo("select not in same line", "Error")
+            return
+    else:
+        word = vim.eval('expand("<cword>")') or ''
     vim.command("let &isk = isk_save")  # restore iskeyword list
     doc = get_doc(word, level)
     if len(doc) == 0:
@@ -238,7 +211,7 @@ def get_doc_buffer(level=0, visual_mode=False):
     vim.command('setlocal nomodified bufhidden=wipe')
     # vim.command('setlocal previewwindow nomodifiable nomodified ro')
     # vim.command('set previewheight=%d'%len(b))# go to previous window
-    vim.command('resize %d' % max(len(b), 20))
+    vim.command('resize %d' % min(len(b), 20))
     # vim.command('pcl')
     # vim.command('pedit doc')
     # vim.command('normal! ') # go to previous window
@@ -310,7 +283,7 @@ def update_subchannel_msgs(debug=False, force=False):
             # close preview window, it was something other than 'vim-ipython'
             vim.command("pcl")
             vim.command("silent pedit +set\ ma vim-ipython")
-            vim.command("wincmd P")  #switch to preview window
+            vim.command("wincmd P")  # switch to preview window
             # subchannel window quick quit key 'q'
             vim.command('nnoremap <buffer> q :q<CR>')
             vim.command("set bufhidden=hide buftype=nofile ft=python")
@@ -359,8 +332,8 @@ def update_subchannel_msgs(debug=False, force=False):
         s = ''
         if 'msg_type' not in m['header']:
             # debug information
-            #echo('skipping a message on sub_channel','WarningMsg')
-            #echo(str(m))
+            # echo('skipping a message on sub_channel','WarningMsg')
+            # echo(str(m))
             continue
         header = m['header']['msg_type']
         if header == 'status':
@@ -427,8 +400,8 @@ def get_child_msg(msg_id):
         if m['parent_header']['msg_id'] == msg_id:
             break
         # else:
-            # got a message, but not the one we were looking for
-            # echo('skipping a message on shell_channel', 'WarningMsg')
+        # got a message, but not the one we were looking for
+        # echo('skipping a message on shell_channel', 'WarningMsg')
     return m
 
 
@@ -500,15 +473,6 @@ def run_this_line(dedent=False):
         return
     msg_id = send(line)
     print_prompt(line, msg_id)
-
-
-@with_subchannel
-def run_get_doc(level=0):
-    word = vim.eval("expand('<cword>')")
-    # get_doc_buffer(level)
-    word += '?' * (level + 1)
-    msg_id = send(word)
-    print_prompt(word, msg_id)
 
 
 @with_subchannel

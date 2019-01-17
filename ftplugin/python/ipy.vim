@@ -93,24 +93,27 @@ au FocusGained *.*,vim-ipython :python3 if update_subchannel_msgs(): echo("vim-i
 au BufEnter vim-ipython :python3 if update_subchannel_msgs(): echo("vim-ipython shell updated (on buffer enter)",'Operator')
 
 " Setup plugin mappings for the most common ways to interact with ipython.
-noremap  <Plug>(IPython-Connect)                    :python3 km_from_string()<CR>
-noremap  <Plug>(IPython-RunLine)            :python3 run_this_line()<CR>
-noremap  <Plug>(IPython-RunLines)           :python3 run_these_lines()<CR>
-noremap  <Plug>(IPython-RunSelected)        :python3 run_selected()<CR>
-noremap  <Plug>(IPython-RunCurrentWord)     :python3 run_current_word()<CR>
-noremap  <Plug>(IPython-OpenPyDoc)          :python3 get_doc_buffer()<CR>
-noremap  <Plug>(IPython-UpdateShell)        :python3 if update_subchannel_msgs(force=True): echo("vim-ipython shell updated",'Operator')<CR>
-noremap  <Plug>(IPython-ToggleReselect)     :python3 toggle_reselect()<CR>
-"noremap  <Plug>(IPython-StartDebugging)     :python3 send('%pdb')<CR>
-"noremap  <Plug>(IPython-BreakpointSet)      :python3 set_breakpoint()<CR>
-"noremap  <Plug>(IPython-BreakpointClear)    :python3 clear_breakpoint()<CR>
-"noremap  <Plug>(IPython-DebugThisFile)      :python3 run_this_file_pdb()<CR>
-"noremap  <Plug>(IPython-BreakpointClearAll) :python3 clear_all_breaks()<CR>
-noremap  <Plug>(IPython-ToggleSendOnSave)   :call <SID>toggle_send_on_save()<CR>
-noremap  <Plug>(IPython-PlotClearCurrent)   :python3 run_command("plt.clf()")<CR>
-noremap  <Plug>(IPython-PlotCloseAll)       :python3 run_command("plt.close('all')")<CR>
-noremap  <Plug>(IPython-RunLineAsTopLevel)  :python3 dedent_run_this_line()<CR>
-xnoremap <Plug>(IPython-RunLinesAsTopLevel) :python3 dedent_run_these_lines()<CR>
+noremap  <Plug>(IPython-Connect)                 : python3 km_from_string()<CR>
+noremap  <Plug>(IPython-RunLine)                 : python3 run_this_line()<CR>
+noremap  <Plug>(IPython-RunLines)                : python3 run_these_lines()<CR>
+noremap  <Plug>(IPython-RunSelected)             : python3 run_selected()<CR>
+noremap  <Plug>(IPython-RunCurrentWord)          : python3 run_current_word()<CR>
+noremap  <Plug>(IPython-DocCurrentWordLevel0)    : python3 get_doc_buffer(level=0, visual=False)<CR>
+noremap  <Plug>(IPython-DocCurrentWordLevel1)    : python3 get_doc_buffer(level=1, visual=False)<CR>
+noremap  <Plug>(IPython-DocVisualSelectedLevel0) : python3 get_doc_buffer(level=0, visual=True)<CR>
+noremap  <Plug>(IPython-DocVisualSelectedLevel1) : python3 get_doc_buffer(level=1, visual=True)<CR>
+" noremap  <Plug>(IPython-UpdateShell)        : python3 if update_subchannel_msgs(force=True) : echo("vim-ipython shell updated",'Operator')<CR>
+" noremap  <Plug>(IPython-ToggleReselect)     : python3 toggle_reselect()<CR>
+" noremap  <Plug>(IPython-StartDebugging)     : python3 send('%pdb')<CR>
+" noremap  <Plug>(IPython-BreakpointSet)      : python3 set_breakpoint()<CR>
+" noremap  <Plug>(IPython-BreakpointClear)    : python3 clear_breakpoint()<CR>
+" noremap  <Plug>(IPython-DebugThisFile)      : python3 run_this_file_pdb()<CR>
+" noremap  <Plug>(IPython-BreakpointClearAll) : python3 clear_all_breaks()<CR>
+" noremap  <Plug>(IPython-ToggleSendOnSave)   : call <SID>toggle_send_on_save()<CR>
+" noremap  <Plug>(IPython-PlotClearCurrent)   : python3 run_command("plt.clf()")<CR>
+" noremap  <Plug>(IPython-PlotCloseAll)       : python3 run_command("plt.close('all')")<CR>
+" noremap  <Plug>(IPython-RunLineAsTopLevel)  : python3 dedent_run_this_line()<CR>
+" xnoremap <Plug>(IPython-RunLinesAsTopLevel) : python3 dedent_run_these_lines()<CR>
 
 if g:ipy_perform_mappings != 0
     map   <buffer> <silent> <space><F5>                     <Plug>(IPython-Connect)
@@ -118,6 +121,10 @@ if g:ipy_perform_mappings != 0
     nmap  <buffer> <silent> <space><space>                  <Plug>(IPython-RunLine)
     vmap  <buffer> <silent> <space><space>                  <Plug>(IPython-RunSelected)
     nmap  <buffer> <silent> <space>w                        <Plug>(IPython-RunCurrentWord)
+    nmap  <buffer> <silent> <space>d                        <Plug>(IPython-DocCurrentWordLevel0)
+    vmap  <buffer> <silent> <space>d                        <Plug>(IPython-DocVisualSelectedLevel0)
+    nmap  <buffer> <silent> <space><space>d                 <Plug>(IPython-DocCurrentWordLevel1)
+    vmap  <buffer> <silent> <space><space>d                 <Plug>(IPython-DocVisualSelectedLevel1)
     " map  <buffer> <silent> <F9>           <Plug>(IPython-RunLines)
     " map  <buffer> <silent> <LocalLeader>d <Plug>(IPython-OpenPyDoc)
     " map  <buffer> <silent> <LocalLeader>s <Plug>(IPython-UpdateShell)
