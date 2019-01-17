@@ -287,12 +287,10 @@ def update_subchannel_msgs(debug=False, force=False):
             # subchannel window quick quit key 'q'
             vim.command('nnoremap <buffer> q :q<CR>')
             vim.command("set bufhidden=hide buftype=nofile ft=python")
-            vim.command(
-                "setlocal nobuflisted")  # don't come up in buffer lists
-            vim.command(
-                "setlocal nonumber")  # no line numbers, we have in/out nums
-            vim.command("setlocal noswapfile"
-                        )  # no swap file (so no complaints cross-instance)
+            vim.command("setlocal nobuflisted")  # don't come up in buffer lists
+            vim.command("setlocal nonumber")  # no line numbers, we have in/out nums
+            vim.command("setlocal noswapfile")
+            # no swap file (so no complaints cross-instance)
             # make shift-enter and control-enter in insert mode behave same as in ipython notebook
             # shift-enter send the current line, control-enter send the line
             # but keeps it around for further editing.
@@ -395,7 +393,6 @@ def get_child_msg(msg_id):
     # XXX: message handling should be split into its own process in the future
     while True:
         # get_msg will raise with Empty exception if no messages arrive in 1 second
-        # m = kc.shell_channel.get_msg(timeout=1)
         m = kc.get_shell_msg(timeout=1)
         if m['parent_header']['msg_id'] == msg_id:
             break
@@ -472,6 +469,7 @@ def run_this_line(dedent=False):
         w.cursor = original_pos
         return
     msg_id = send(line)
+    vim.command("normal! j")
     print_prompt(line, msg_id)
 
 
@@ -627,17 +625,17 @@ def toggle_reselect():
 #                                                        vim.current.window.cursor[0]))
 #    print("set breakpoint in %s:%d"% (vim.current.buffer.name,
 #                                      vim.current.window.cursor[0]))
-#
+
 #def clear_breakpoint():
 #    send("__IP.InteractiveTB.pdb.clear_break('%s',%d)" % (vim.current.buffer.name,
 #                                                          vim.current.window.cursor[0]))
 #    print("clearing breakpoint in %s:%d" % (vim.current.buffer.name,
 #                                            vim.current.window.cursor[0]))
-#
+
 #def clear_all_breakpoints():
 #    send("__IP.InteractiveTB.pdb.clear_all_breaks()");
 #    print("clearing all breakpoints")
-#
+
 #def run_this_file_pdb():
 #    send(' __IP.InteractiveTB.pdb.run(\'execfile("%s")\')' % (vim.current.buffer.name,))
 #    #send('run -d %s' % (vim.current.buffer.name,))
